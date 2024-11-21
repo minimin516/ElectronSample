@@ -9,7 +9,13 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import electron, {
+  app,
+  BrowserWindow,
+  shell,
+  ipcMain,
+  Display,
+} from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
@@ -26,9 +32,22 @@ class AppUpdater {
 let mainWindow: BrowserWindow | null = null;
 
 ipcMain.on('ipc-example', async (event, arg) => {
+  const mainDisplay = getDisplay();
+
+  // 선택한 디스플레이의 bounds 정보
+  const { bounds } = getDisplay();
+  const windowWidth = 800;
+  const windowHeight = 600;
+
+  // 창을 화면 중앙에 배치하기 위한 좌표 계산
+  const x = Math.round(bounds.x + (bounds.width - windowWidth) / 2);
+  const y = Math.round(bounds.y + (bounds.height - windowHeight) / 2);
+
   let main = new BrowserWindow({
-    width: 846,
-    height: 443,
+    x,
+    y,
+    width: windowWidth,
+    height: windowHeight,
     show: false,
     frame: false,
     webPreferences: {
@@ -44,6 +63,22 @@ ipcMain.on('ipc-example', async (event, arg) => {
   console.log(arg);
   // event.reply('ipc-example', msgTemplate('pong'));
 });
+
+function getDisplay(): Display {
+  const displays: Display[] = electron.screen
+    .getAllDisplays()
+    .sort(
+      (a: Display, b: Display) =>
+        a.bounds.x + a.bounds.y - b.bounds.x - b.bounds.y,
+    );
+  const main = displays.find(
+    (display: Display) => display.bounds.x === 0 && display.bounds.y === 0,
+  );
+  if (!main) {
+    throw new Error('Primary display not found');
+  }
+  return main;
+}
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
