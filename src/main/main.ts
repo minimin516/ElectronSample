@@ -19,7 +19,7 @@ import electron, {
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
-import { resolveHtmlPath } from './util';
+import { getDisplay, resolveHtmlPath, settingNewBrowserWindow } from './util';
 
 class AppUpdater {
   constructor() {
@@ -32,8 +32,6 @@ class AppUpdater {
 let mainWindow: BrowserWindow | null = null;
 
 ipcMain.on('ipc-example', async (event, arg) => {
-  const mainDisplay = getDisplay();
-
   // 선택한 디스플레이의 bounds 정보
   const { bounds } = getDisplay();
   const windowWidth = 800;
@@ -43,42 +41,17 @@ ipcMain.on('ipc-example', async (event, arg) => {
   const x = Math.round(bounds.x + (bounds.width - windowWidth) / 2);
   const y = Math.round(bounds.y + (bounds.height - windowHeight) / 2);
 
-  let main = new BrowserWindow({
+  let main = settingNewBrowserWindow({
     x,
     y,
     width: windowWidth,
     height: windowHeight,
-    show: false,
     frame: false,
-    webPreferences: {
-      preload: app.isPackaged
-        ? path.join(__dirname, 'preload.js')
-        : path.join(__dirname, '../../.erb/dll/preload.js'),
-    },
     fullscreen: false,
   });
-  main.show();
   main.loadURL(resolveHtmlPath(`main.html`));
-  // const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
   console.log(arg);
-  // event.reply('ipc-example', msgTemplate('pong'));
 });
-
-function getDisplay(): Display {
-  const displays: Display[] = electron.screen
-    .getAllDisplays()
-    .sort(
-      (a: Display, b: Display) =>
-        a.bounds.x + a.bounds.y - b.bounds.x - b.bounds.y,
-    );
-  const main = displays.find(
-    (display: Display) => display.bounds.x === 0 && display.bounds.y === 0,
-  );
-  if (!main) {
-    throw new Error('Primary display not found');
-  }
-  return main;
-}
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
@@ -118,16 +91,11 @@ const createWindow = async () => {
     return path.join(RESOURCES_PATH, ...paths);
   };
 
-  mainWindow = new BrowserWindow({
+  mainWindow = settingNewBrowserWindow({
     show: false,
     width: 1024,
     height: 728,
     icon: getAssetPath('icon.png'),
-    webPreferences: {
-      preload: app.isPackaged
-        ? path.join(__dirname, 'preload.js')
-        : path.join(__dirname, '../../.erb/dll/preload.js'),
-    },
   });
 
   mainWindow.loadURL(resolveHtmlPath('index.html'));
