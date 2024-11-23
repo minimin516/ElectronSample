@@ -20,6 +20,7 @@ import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { getDisplay, resolveHtmlPath, settingNewBrowserWindow } from './util';
+import { IPC_CHANNELS } from '../common/ipcChannels';
 
 class AppUpdater {
   constructor() {
@@ -31,7 +32,7 @@ class AppUpdater {
 
 let mainWindow: BrowserWindow | null = null;
 
-ipcMain.on('ipc-example', async (event, arg) => {
+ipcMain.on(IPC_CHANNELS.GO_MAIN, async (event, arg) => {
   // 선택한 디스플레이의 bounds 정보
   const { bounds } = getDisplay();
   const windowWidth = 800;
@@ -50,8 +51,29 @@ ipcMain.on('ipc-example', async (event, arg) => {
     fullscreen: false,
   });
   main.loadURL(resolveHtmlPath(`main.html`));
-  console.log(arg);
+  console.log(IPC_CHANNELS.GO_MAIN, arg);
 });
+
+ipcMain.on(IPC_CHANNELS.GET_DATA, async (event, arg) => {
+  if (arg) {
+    console.log(IPC_CHANNELS.GET_DATA, arg);
+    event.sender.send(IPC_CHANNELS.RESPONSE_DATA, getUserData(arg.id));
+    return;
+  }
+  console.log('No Data');
+});
+
+function getUserData(userId: number) {
+  // 예제 데이터
+  const mockUsers = [
+    { id: 123, name: 'MINKI', email: 'minki@example.com' },
+    { id: 456, name: 'BOB', email: 'bob@example.com' },
+  ];
+
+  return (
+    mockUsers.find((user) => user.id === userId) || { error: 'User not found' }
+  );
+}
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');

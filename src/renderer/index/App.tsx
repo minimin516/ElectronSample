@@ -1,11 +1,12 @@
 import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
 import icon from '../../../assets/icon.svg';
 import './App.css';
+import { IPC_CHANNELS } from '../../common/ipcChannels';
 // const ipcRenderer = require('electron').ipcRenderer;
 
 function Hello() {
   const goMain = () => {
-    window.electron.ipcRenderer.sendMessage('ipc-example', ['goMain']);
+    window.electron.ipcRenderer.sendMessage(IPC_CHANNELS.GO_MAIN, []);
   };
   return (
     <div>
