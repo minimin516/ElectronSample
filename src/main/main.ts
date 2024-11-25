@@ -21,6 +21,8 @@ import log from 'electron-log';
 import MenuBuilder from './menu';
 import { getDisplay, resolveHtmlPath, settingNewBrowserWindow } from './util';
 import { IPC_CHANNELS } from '../common/ipcChannels';
+import Store from 'electron-store';
+import { StoreType } from '../common/Type';
 
 class AppUpdater {
   constructor() {
@@ -31,6 +33,8 @@ class AppUpdater {
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+const store = new Store<StoreType>() as Record<string, any>;
 
 ipcMain.on(IPC_CHANNELS.GO_MAIN, async (event, arg) => {
   // 선택한 디스플레이의 bounds 정보
@@ -104,7 +108,7 @@ const createWindow = async () => {
   if (isDebug) {
     await installExtensions();
   }
-
+  console.log(store);
   const RESOURCES_PATH = app.isPackaged
     ? path.join(process.resourcesPath, 'assets')
     : path.join(__dirname, '../../assets');
@@ -114,9 +118,8 @@ const createWindow = async () => {
   };
 
   mainWindow = settingNewBrowserWindow({
+    ...getWindowBounds(),
     show: false,
-    width: 1024,
-    height: 728,
     icon: getAssetPath('icon.png'),
   });
 
@@ -133,7 +136,13 @@ const createWindow = async () => {
     }
   });
 
+  mainWindow.on('close', () => {
+    store.set('windowBounds', mainWindow?.getBounds());
+    mainWindow = null;
+  });
   mainWindow.on('closed', () => {
+    // store.get('');
+    console.log(store.get('windowBounds'));
     mainWindow = null;
   });
 
@@ -174,3 +183,12 @@ app
     });
   })
   .catch(console.log);
+
+function getWindowBounds() {
+  return store.get('windowBounds', {
+    x: 608,
+    y: 266,
+    width: 1024,
+    height: 728,
+  });
+}
