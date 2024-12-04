@@ -23,6 +23,8 @@ import { getDisplay, resolveHtmlPath, settingNewBrowserWindow } from './util';
 import { IPC_CHANNELS } from '../common/ipcChannels';
 import Store from 'electron-store';
 import { StoreType } from '../common/Type';
+import protobuf from 'protobufjs';
+import { protoContent } from '../common/messageProto';
 
 class AppUpdater {
   constructor() {
@@ -33,6 +35,7 @@ class AppUpdater {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let mainSideWindow: BrowserWindow | null = null;
 
 const store = new Store<StoreType>() as Record<string, any>;
 
@@ -46,7 +49,7 @@ ipcMain.on(IPC_CHANNELS.GO_MAIN, async (event, arg) => {
   const x = Math.round(bounds.x + (bounds.width - windowWidth) / 2);
   const y = Math.round(bounds.y + (bounds.height - windowHeight) / 2);
 
-  let main = settingNewBrowserWindow({
+  let mainSideWindow = settingNewBrowserWindow({
     x,
     y,
     width: windowWidth,
@@ -54,18 +57,46 @@ ipcMain.on(IPC_CHANNELS.GO_MAIN, async (event, arg) => {
     frame: false,
     fullscreen: false,
   });
-  main.loadURL(resolveHtmlPath(`main.html`));
+  mainSideWindow.loadURL(resolveHtmlPath(`main.html`));
+  mainSideWindow.on('ready-to-show', () => {
+    if (!mainWindow) {
+      throw new Error('"mainWindow" is not defined');
+    }
+    if (process.env.START_MINIMIZED) {
+      mainWindow.minimize();
+    } else {
+      mainWindow.show();
+      ipcMain.on(IPC_CHANNELS.GET_DATA, getDataFunction);
+    }
+  });
+
+  mainSideWindow.on('close', () => {
+    store.set('windowBounds', mainWindow?.getBounds());
+
+    ipcMain.removeListener(IPC_CHANNELS.GET_DATA, getDataFunction);
+    mainWindow = null;
+  });
+  mainSideWindow.on('closed', () => {
+    // store.get('');
+    console.log(store.get('windowBounds'));
+    mainWindow = null;
+  });
   console.log(IPC_CHANNELS.GO_MAIN, arg);
 });
 
-ipcMain.on(IPC_CHANNELS.GET_DATA, async (event, arg) => {
+const getDataFunction = async (event: Electron.IpcMainEvent, arg: any) => {
   if (arg) {
     console.log(IPC_CHANNELS.GET_DATA, arg);
-    event.sender.send(IPC_CHANNELS.RESPONSE_DATA, getUserData(arg.id));
+
+    const root = protobuf.parse(protoContent).root;
+    const userDataRequest = root.lookupType('userDataReqRes');
+    const message = userDataRequest.create(getUserData(arg.id));
+    const buffer = userDataRequest.encode(message).finish();
+    event.sender.send(IPC_CHANNELS.RESPONSE_DATA, buffer);
     return;
   }
   console.log('No Data');
-});
+};
 
 function getUserData(userId: number) {
   // 예제 데이터

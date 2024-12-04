@@ -3,6 +3,8 @@ import icon from 'assets/icon.svg';
 import 'css/App.css';
 import { IPC_CHANNELS } from '../../common/ipcChannels';
 import { useState } from 'react';
+import protobuf from 'protobufjs';
+import { protoContent } from '../../common/messageProto';
 
 function SampleMain() {
   const [userInfo, setUserInfo] = useState<
@@ -11,9 +13,20 @@ function SampleMain() {
 
   window.electron.ipcRenderer.on(
     IPC_CHANNELS.RESPONSE_DATA,
-    (event, data: any) => {
-      console.log('User data received:', data); // 성공적으로 사용자 데이터 수신
-      setUserInfo(data);
+    (event, buffer: any) => {
+      console.log('========');
+      const root = protobuf.parse(protoContent).root;
+      const FetchDataResponse = root.lookupType('userDataReqRes');
+
+      // 데이터 디코딩
+      try {
+        const decodedResponse = FetchDataResponse.decode(buffer);
+        console.log('Decoded Response:', decodedResponse);
+        console.log('User data received:', decodedResponse); // 성공적으로 사용자 데이터 수신
+      } catch (ex) {
+        console.log(ex);
+      }
+      // setUserInfo('decodedResponse');
     },
   );
 
